@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simple-rest-api
+  namespace: hegdek8s
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: simple-rest-api
+  template:
+    metadata:
+      labels:
+        app: simple-rest-api
+    spec:
+      containers:
+      - name: simple-rest-api
+        image: ninadhegde/hegde_tech:simple-rest-api
+        ports:
+        - containerPort: 5000
+        env:
+        - name: PORT
+          value: "5000"
+        - name: MONGO_URI
+          value: "mongodb://mongo-service:27017/demoapi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rest-api-service
+  namespace: hegdek8s
+spec:
+  selector:
+    app: simple-rest-api
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
+  type: NodePort
