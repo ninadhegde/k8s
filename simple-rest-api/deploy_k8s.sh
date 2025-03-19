@@ -77,10 +77,10 @@ spec:
       - name: simple-rest-api
         image: ninadhegde/hegde_tech:simple-rest-api
         ports:
-        - containerPort: 5000
+        - containerPort: 3000
         env:
         - name: PORT
-          value: "5000"
+          value: "3000"
         - name: MONGO_URI
           value: "mongodb://mongo-service:27017/demoapi"
 ---
@@ -95,7 +95,7 @@ spec:
   ports:
     - protocol: TCP
       port: 80
-      targetPort: 5000
+      targetPort: 3000
   type: NodePort
 EOF
 
@@ -128,9 +128,26 @@ echo "✅ YAML files created!"
 minikube addons enable ingress
 
 # Apply all Kubernetes YAML configurations
+echo "🚀 Applying Kubernetes configurations..."
 minikube kubectl -- apply -f namespace.yaml
 minikube kubectl -- apply -f mongo-deployment.yaml
 minikube kubectl -- apply -f app-deployment.yaml
 minikube kubectl -- apply -f ingress.yaml
 
-echo "🚀 Deployment Complete! Run 'kubectl get pods -n hegdek8s' to check status."
+# Wait for deployments to be ready
+echo "⏳ Waiting for pods to be ready..."
+minikube kubectl -- wait --for=condition=available --timeout=90s deployment/simple-rest-api -n hegdek8s
+minikube kubectl -- wait --for=condition=available --timeout=90s deployment/mongo -n hegdek8s
+
+# Get Minikube IP
+MINIKUBE_IP=$(minikube ip)
+
+# Get the NodePort assigned to the service
+NODE_PORT=$(minikube kubectl -- get service rest-api-service -n hegdek8s -o=jsonpath='{.spec.ports[0].nodePort}')
+
+echo "🚀 Deployment Complete!"
+echo "📌 Check pod status: minikube kubectl -- get pods -n hegdek8s"
+echo "🌎 Access API at: http://${MINIKUBE_IP}:${NODE_PORT}/api/data"
+echo "🔹 Test GET API: curl -X GET http://${MINIKUBE_IP}:${NODE_PORT}/api/data"
+echo "🔹 Test POST API: curl -X POST http://${MINIKUBE_IP}:${NODE_PORT}/api/data -H 'Content-Type: application/json' -d '{\"name\": \"John Dota\", \"email\": \"john@example.com\"}'"
+

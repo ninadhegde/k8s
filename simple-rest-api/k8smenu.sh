@@ -1,7 +1,17 @@
 #!/bin/bash
 
 NAMESPACE="hegdek8s"
-API_URL="http://$(minikube ip)/"  # Change if needed
+MINIKUBE_IP=$(minikube ip)
+
+# Function to get NodePort dynamically
+get_node_port() {
+    local node_port=$(minikube kubectl -- get service rest-api-service -n $NAMESPACE -o=jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null)
+    if [[ -z "$node_port" ]]; then
+        echo "❌ Error: Could not fetch NodePort. Ensure the service is running."
+        return 1
+    fi
+    echo "$node_port"
+}
 
 while true; do
     echo "======================================"
@@ -12,8 +22,8 @@ while true; do
     echo "3️⃣  Delete Deployment"
     echo "4️⃣  Check Status"
     echo "5️⃣  Get Minikube IP"
-    echo "6️⃣  Test API - GET /"
-    echo "7️⃣  Test API - POST /data"
+    echo "6️⃣  Test API - GET /api/data"
+    echo "7️⃣  Test API - POST /api/data"
     echo "8️⃣  Exit"
     echo "======================================"
     read -p "👉 Choose an option: " option
@@ -21,7 +31,8 @@ while true; do
     case $option in
         1)
             echo "🔹 Starting Deployment..."
-            ./deploy_k8s.sh
+            ./deploy_k8s.sh  # Run deployment script
+            echo "✅ Deployment Started!"
             ;;
         2)
             echo "🛑 Stopping Deployment..."
@@ -39,16 +50,23 @@ while true; do
             minikube kubectl -- get pods -n $NAMESPACE
             ;;
         5)
-            echo "🌎 Minikube IP:"
-            minikube ip
+            echo "🌎 Minikube IP: $MINIKUBE_IP"
             ;;
         6)
-            echo "🔹 Testing GET API..."
-            curl -X GET "$API_URL"
+            NODE_PORT=$(get_node_port)
+            if [[ -n "$NODE_PORT" ]]; then
+                API_URL="http://localhost:8080/api/data"
+                echo "🔹 Testing GET API at $API_URL ..."
+                curl -X GET "$API_URL"
+            fi
             ;;
         7)
-            echo "🔹 Testing POST API..."
-            curl -X POST "$API_URL/data" -H "Content-Type: application/json" -d '{"name": "John Doe", "email": "john@example.com"}'
+            NODE_PORT=$(get_node_port)
+            if [[ -n "$NODE_PORT" ]]; then
+                API_URL="http://localhost:8080/api/data"
+                echo "🔹 Testing POST API at $API_URL ..."
+                curl -X POST "$API_URL" -H "Content-Type: application/json" -d '{"name": "John Dota", "email": "john@example.com"}'
+            fi
             ;;
         8)
             echo "👋 Exiting..."
@@ -59,3 +77,4 @@ while true; do
             ;;
     esac
 done
+
